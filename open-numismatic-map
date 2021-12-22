@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+
+import argparse
+import folium
+from folium import plugins
+import sqlite3
+import base64
+import tempfile
+import cv2
+import numpy as np
+
+
+def formatter_image(value):
+    return '<img src="data:image/png;base64, {}"/>'.format(base64.encodebytes(value).decode('utf-8'))
+
+
+formatters = {
+    'photo1': formatter_image,
+    'photo2': formatter_image,
+    'photo3': formatter_image,
+    'photo4': formatter_image,
+    'photo5': formatter_image,
+    'photo6': formatter_image,
+    'obverseimg': formatter_image,
+    'reverseimg': formatter_image,
+    'edgeimg': formatter_image,
+    'varietyimg': formatter_image,
+    'signatureimg': formatter_image
+}
+
+
+def format_value(field, value):
+    formatter = formatters.get(field)
+    if formatter:
+        return formatter(value)
+    return value
+
+
+def all_coins(db):
+    con = sqlite3.connect(db)
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+    coins = cur.execute('''
+SELECT
+    coins.title,
+    coins.longitude,
+    coins.latitude,
+    coins.mint,
+    coins.region,
+    coins.value,
+    coins.unit,
+    coins.country,
+    coins.year,
+    coins.period,
+    coins.mintmark,
+    coins.issuedate,
+    coins.edge,
+    coins.edgelabel,
+    coins.obvrev,
+    coins.quality,
+    coins.mintage,
+    coins.dateemis,
+    coins.catalognum1,
+    coins.catalognum2,
+    coins.catalognum3,
+    coins.catalognum4,
+    coins.rarity,
+    coins.price1,
+    coins.price2,
+    coins.price3,
+    coins.price4,
+    coins.variety,
+    coins.obversevar,
+    coins.reversevar,
+    coins.edgevar,
+    coins.paydate,
+    coins.payprice,
+    coins.totalpayprice,
+    coins.saller,
+    coins.payplace,
+    coins.payinfo,
+    coins.saledate,
+    coins.saleprice,
+    coins.totalsaleprice,
+    coins.buyer,
+    coins.saleplace,
+    coins.saleinfo,
+    coins.note,
+    coins.image,
+    coins.obversedesign,
+    coins.obversedesigner,
+    coins.reversedesign,
+    coins.reversedesigner,
+    coins.subject,
+    coins.defect,
+    coins.storage,
+    coins.features,
+    coins.createdat,
+    coins.updatedat,
+    coins.quantity,
+    coins.url,
+    coins.barcode,
+    coins.ruler,
+    coins.status,
+    coins.obverseengraver,
+    coins.reverseengraver,
+    coins.obversecolor,
+    coins.reversecolor,
+    coins.varietydesc,
+    coins.format,
+    coins.condition,
+    coins.category,
+    coins.sort_id,
+    coins.emitent,
+    coins.signaturetype,
+    coins.signature,
+    coins.address,
+    coins.grader,
+    coins.seat,
+    coins.native_year,
+    photos_photo1.image as photo1,
+    photos_photo2.image as photo2,
+    photos_photo3.image as photo3,
+    photos_photo4.image as photo4,
+    photos_photo5.image as photo5,
+    photos_photo6.image as photo6,
+    photos_obverseimg.image as obverseimg,
+    photos_reverseimg.image as reverseimg,
+    photos_edgeimg.image as edgeimg,
+    photos_varietyimg.image as varietyimg,
+    photos_signatureimg.image as signatureimg
+FROM
+    coins
+LEFT JOIN photos photos_photo1 ON coins.photo1=photos_photo1.id
+LEFT JOIN photos photos_photo2 ON coins.photo2=photos_photo2.id
+LEFT JOIN photos photos_photo3 ON coins.photo3=photos_photo3.id
+LEFT JOIN photos photos_photo4 ON coins.photo4=photos_photo4.id
+LEFT JOIN photos photos_photo5 ON coins.photo5=photos_photo5.id
+LEFT JOIN photos photos_photo6 ON coins.photo6=photos_photo6.id
+LEFT JOIN photos photos_obverseimg ON coins.obverseimg=photos_obverseimg.id
+LEFT JOIN photos photos_reverseimg ON coins.reverseimg=photos_reverseimg.id
+LEFT JOIN photos photos_edgeimg ON coins.edgeimg=photos_edgeimg.id
+LEFT JOIN photos photos_varietyimg ON coins.varietyimg=photos_varietyimg.id
+LEFT JOIN photos photos_signatureimg ON coins.signatureimg=photos_signatureimg.id
+WHERE
+    coins.latitude != '' AND
+    coins.longitude != '' AND
+    coins.obverseimg IS NOT NULL
+''').fetchall()
+    con.close()
+    return [dict(coin) for coin in coins]
+
+
+def transparent_image(image):
+    '''
+    Source: https://stackoverflow.com/questions/63001988/how-to-remove-background-of-images-in-python/63003020#63003020
+    '''
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # threshold input image as mask
+    mask = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)[1]
+    # negate mask
+    mask = 255 - mask
+    # apply morphology to remove isolated extraneous noise
+    # use borderconstant of black since foreground touches the edges
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    # anti-alias the mask -- blur then stretch
+    # blur alpha channel
+    mask = cv2.GaussianBlur(mask, (0, 0), sigmaX=2,
+                            sigmaY=2, borderType=cv2.BORDER_DEFAULT)
+    # linear stretch so that 127.5 goes to 0, but 255 stays 255
+    mask = (2*(mask.astype(np.float32))-255.0).clip(0, 255).astype(np.uint8)
+    # put mask into alpha channel
+    result = image.copy()
+    result = cv2.cvtColor(result, cv2.COLOR_BGR2BGRA)
+    result[:, :, 3] = mask
+    # save resulting masked image
+    return result
+
+
+def coin_popup(coin, fields):
+    columns = ''
+    for field in fields:
+        if field in coin:
+            columns += '<td>{}</td>'.format(format_value(field, coin[field]))
+    return '<h3>{} / {} mint</h3><table class="table coins"><tbody><tr>{}</tr></tbody></table>'.format(coin['region'], coin['mint'], columns)
+
+
+def coin_icon(coin, size=(32, 32)):
+    with tempfile.NamedTemporaryFile(suffix='.png') as tmp:
+        image = cv2.imdecode(np.frombuffer(
+            coin['obverseimg'], dtype=np.uint8), flags=1)
+        cv2.imwrite(tmp.name, transparent_image(image))
+        return folium.features.CustomIcon(tmp.name, icon_size=size)
+
+
+def coin_marker(coin, fields):
+    return folium.Marker([coin['latitude'], coin['longitude']], icon=coin_icon(coin), popup=coin_popup(coin, fields))
+
+
+def main():
+    parser = argparse.ArgumentParser(description='OpenNumismatic Map')
+    parser.add_argument('--db', type=str, required=True,
+                        help='Path to OpenNumismatic database')
+    parser.add_argument(
+        '--fields', type=str, default='photo1,title', help='Fields to display in pop-up')
+    parser.add_argument(
+        '--layer', type=str, help='Field to add layer control')
+    parser.add_argument(
+        '--outfile', type=str, default='index.html', help='Path to store map')
+    args = parser.parse_args()
+    group_locations = {}
+    group_markers = {}
+    map = folium.Map(title='OpenNumismatic Map')
+    marker_cluster = folium.plugins.MarkerCluster(control=False)
+    map.add_child(marker_cluster)
+    for coin in all_coins(args.db):
+        location = (coin['latitude'], coin['longitude'])
+        if location not in group_locations:
+            group_locations[location] = [coin]
+        else:
+            group_locations[location].append(coin)
+        marker = coin_marker(coin, args.fields.split(','))
+        if args.layer and args.layer in coin and coin[args.layer] and isinstance(coin[args.layer], str):
+            if coin[args.layer] in group_markers:
+                group_marker = group_markers[coin[args.layer]]
+            else:
+                group_marker = folium.plugins.FeatureGroupSubGroup(
+                    marker_cluster, coin[args.layer])
+                group_markers[coin[args.layer]] = group_marker
+                map.add_child(group_marker)
+            group_marker.add_child(marker)
+        else:
+            # Layer not set or does not exist
+            marker_cluster.add_child(marker)
+    map.fit_bounds(list(group_locations.keys()))
+    map.get_root().header.add_child(folium.CssLink('./static/style.css'))
+    map.get_root().header.add_child(folium.CssLink('./static/bootstrap.min.css'))
+    folium.LayerControl().add_to(map)
+    map.save(args.outfile)
+
+
+if __name__ == '__main__':
+    main()

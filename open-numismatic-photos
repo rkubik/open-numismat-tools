@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import sqlite3
+import cv2
+import numpy as np
+import io
+import requests
+
+
+class Translate:
+    def vsplitl(self, image):
+        width_cutoff = image.shape[1] // 2
+        return image[:, :width_cutoff]
+
+    def vsplitr(self, image):
+        width_cutoff = image.shape[1] // 2
+        return image[:, width_cutoff:]
+
+
+def load_photo(args):
+    if args.in_path:
+        with open(args.in_path, 'rb') as f:
+            return f.read()
+    if args.in_field:
+        con = sqlite3.connect(args.db)
+        cur = con.cursor()
+        photo = cur.execute(
+            f'SELECT photos_{args.in_field}.image FROM coins LEFT JOIN photos photos_{args.in_field} ON coins.{args.in_field}=photos_{args.in_field}.id WHERE coins.id = ? LIMIT 1', (args.coin_id,)).fetchone()[0]
+        con.close()
+        return photo
+    if args.in_url:
+        r = requests.get(args.in_url, allow_redirects=True)
+        if r.status_code == 200:
+            return r.content
+
+
+def save_photo(photo, args):
+    if args.out_path:
+        with open(args.out_path, 'wb') as f:
+            return f.write(photo)
+    if args.out_field:
+        con = sqlite3.connect(args.db)
+        cur = con.cursor()
+        old_photo_id = cur.execute(
+            f'SELECT {args.out_field} FROM coins WHERE id = ? LIMIT 1', (args.coin_id,)).fetchone()[0]
+        if old_photo_id is not None:
+            cur.execute(f'DELETE FROM photos WHERE id = ?', (old_photo_id,))
+        cur.execute('INSERT INTO photos (image) VALUES (?)', (photo,))
+        new_photo_id = cur.lastrowid
+        cur.execute(
+            f'UPDATE coins SET {args.out_field} = ? WHERE id = ?', (new_photo_id, args.coin_id))
+        con.commit()
+        con.close()
+
+
+def translate_photo(photo, translations):
+    image = cv2.imdecode(np.frombuffer(photo, dtype=np.uint8), flags=1)
+    translate = Translate()
+    for translation in translations:
+        image = getattr(translate, translation)(image)
+    _, result = cv2.imencode('.jpg', image)
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Photos helper')
+    parser.add_argument('--db', type=str,
+                        help='Path to OpenNumismatic database')
+    parser.add_argument('--coin-id', type=int, required=True,
+                        help='Coin ID')
+    parser.add_argument('--in-path', type=str,
+                        help='Path to use as photo input')
+    parser.add_argument('--in-field', type=str,
+                        help='Database field to use as photo input')
+    parser.add_argument('--in-url', type=str,
+                        help='URL as photo input')
+    parser.add_argument('--out-path', type=str,
+                        help='Path to use as photo output')
+    parser.add_argument('--out-field', type=str,
+                        help='Database field to use as photo output')
+    parser.add_argument('--translate', action='append',
+                        nargs='+', choices=('vsplitl', 'vsplitr'), default=[], help='Image translation')
+    args = parser.parse_args()
+    if (args.in_field or args.out_field) and not (args.db or args.coin_id):
+        print('Error: Missing required option --db and --coin-id')
+        sys.exit(1)
+    in_photo = load_photo(args)
+    if not in_photo:
+        print('Error: Failed to load photo')
+        sys.exit(1)
+    out_photo = translate_photo(in_photo, [item[0] for item in args.translate])
+    save_photo(out_photo, args)
+
+
+if __name__ == '__main__':
+    main()
