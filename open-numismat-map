@@ -200,9 +200,9 @@ def coin_marker(coin, fields):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='OpenNumismatic Map')
+    parser = argparse.ArgumentParser(description='OpenNumismat Map')
     parser.add_argument('--db', type=str, required=True,
-                        help='Path to OpenNumismatic database')
+                        help='Path to OpenNumismat database')
     parser.add_argument(
         '--fields', type=str, default='photo1,title', help='Fields to display in pop-up')
     parser.add_argument(
@@ -212,7 +212,7 @@ def main():
     args = parser.parse_args()
     group_locations = {}
     group_markers = {}
-    map = folium.Map(title='OpenNumismatic Map')
+    map = folium.Map(title='OpenNumismat Map')
     marker_cluster = folium.plugins.MarkerCluster(control=False)
     map.add_child(marker_cluster)
     for coin in all_coins(args.db):

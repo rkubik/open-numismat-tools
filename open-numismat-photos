@@ -67,7 +67,7 @@ def translate_photo(photo, translations):
 def main():
     parser = argparse.ArgumentParser(description='Photos helper')
     parser.add_argument('--db', type=str,
-                        help='Path to OpenNumismatic database')
+                        help='Path to OpenNumismat database')
     parser.add_argument('--coin-id', type=int, required=True,
                         help='Coin ID')
     parser.add_argument('--in-path', type=str,
