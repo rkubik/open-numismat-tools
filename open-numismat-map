@@ -6,12 +6,19 @@ from folium import plugins
 import sqlite3
 import base64
 import tempfile
+import re
 import cv2
 import numpy as np
 
 
 def formatter_image(value):
     return '<img src="data:image/png;base64, {}"/>'.format(base64.encodebytes(value).decode('utf-8'))
+
+
+def formatter_year(value):
+    if int(value) < 1:
+        return f'{abs(value)} B.C.'
+    return f'{abs(value)} A.D.'
 
 
 formatters = {
@@ -25,7 +32,8 @@ formatters = {
     'reverseimg': formatter_image,
     'edgeimg': formatter_image,
     'varietyimg': formatter_image,
-    'signatureimg': formatter_image
+    'signatureimg': formatter_image,
+    'year': formatter_year,
 }
 
 
@@ -47,6 +55,8 @@ SELECT
     coins.latitude,
     coins.mint,
     coins.region,
+    coins.grade,
+    coins.material,
     coins.value,
     coins.unit,
     coins.country,
@@ -118,6 +128,8 @@ SELECT
     coins.grader,
     coins.seat,
     coins.native_year,
+    coins.diameter,
+    coins.weight,
     photos_photo1.image as photo1,
     photos_photo2.image as photo2,
     photos_photo3.image as photo3,
@@ -179,11 +191,26 @@ def transparent_image(image):
     return result
 
 
-def coin_popup(coin, fields):
+def coin_popup_columns(format):
+    return format.split('|')
+
+
+def coin_popup_description(coin, format):
+    description = format
+    for field in set(re.findall('{([^}]*)}', format)):
+        value = ''
+        try:
+            value = str(format_value(field, coin[field]))
+        except KeyError:
+            pass
+        description = description.replace(f'{{{field}}}', value)
+    return description
+
+
+def coin_popup(coin, format):
     columns = ''
-    for field in fields:
-        if field in coin:
-            columns += '<td>{}</td>'.format(format_value(field, coin[field]))
+    for column in coin_popup_columns(format):
+        columns += '<td>{}</td>'.format(coin_popup_description(coin, column))
     return '<h3>{} / {} mint</h3><table class="table coins"><tbody><tr>{}</tr></tbody></table>'.format(coin['region'], coin['mint'], columns)
 
 
@@ -195,8 +222,16 @@ def coin_icon(coin, size=(32, 32)):
         return folium.features.CustomIcon(tmp.name, icon_size=size)
 
 
-def coin_marker(coin, fields):
-    return folium.Marker([coin['latitude'], coin['longitude']], icon=coin_icon(coin), popup=coin_popup(coin, fields))
+def coin_marker(coin, icon_size, fields):
+    return folium.Marker([coin['latitude'], coin['longitude']], icon=coin_icon(coin, size=icon_size), popup=coin_popup(coin, fields))
+
+
+def parse_coin_size(size_str):
+    try:
+        width, height = size_str.split('x')
+        return int(width), int(height)
+    except:
+        return (32, 32)
 
 
 def main():
@@ -204,11 +239,13 @@ def main():
     parser.add_argument('--db', type=str, required=True,
                         help='Path to OpenNumismat database')
     parser.add_argument(
-        '--fields', type=str, default='photo1,title', help='Fields to display in pop-up')
+        '--format', type=str, default='{photo1}|{title}. {material} {unit} ({diameter}mm, {weight}g). {mint} mint. Struck {year}. {obversedesign} / {reversedesign} {grade} {rarity}.', help='Format to display in pop-up')
     parser.add_argument(
         '--layer', type=str, help='Field to add layer control')
     parser.add_argument(
         '--outfile', type=str, default='index.html', help='Path to store map')
+    parser.add_argument('--icon-size', type=str,
+                        default='44x44', help='Marker icon size')
     args = parser.parse_args()
     group_locations = {}
     group_markers = {}
@@ -221,7 +258,8 @@ def main():
             group_locations[location] = [coin]
         else:
             group_locations[location].append(coin)
-        marker = coin_marker(coin, args.fields.split(','))
+        marker = coin_marker(coin, parse_coin_size(
+            args.icon_size), args.format)
         if args.layer and args.layer in coin and coin[args.layer] and isinstance(coin[args.layer], str):
             if coin[args.layer] in group_markers:
                 group_marker = group_markers[coin[args.layer]]
