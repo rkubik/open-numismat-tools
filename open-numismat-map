@@ -237,7 +237,7 @@ def main():
                         )
     parser.add_argument('--popup-file',
                         type=str,
-                        default='popups/simple.html',
+                        default='map/popups/simple.html',
                         help='Render popup from HTML file'
                         )
     parser.add_argument('--layer',
@@ -246,7 +246,7 @@ def main():
                         )
     parser.add_argument('--outfile',
                         type=str,
-                        default='index.html',
+                        default='map.html',
                         help='Path to save HTML map'
                         )
     parser.add_argument('--icon-size',
@@ -286,8 +286,8 @@ def main():
             # Layer not set or does not exist
             marker_cluster.add_child(marker)
     map.fit_bounds(list(group_locations.keys()))
-    map.get_root().header.add_child(folium.CssLink('./static/style.css'))
-    map.get_root().header.add_child(folium.CssLink('./static/bootstrap.min.css'))
+    map.get_root().header.add_child(folium.CssLink('./map/static/style.css'))
+    map.get_root().header.add_child(folium.CssLink('./map/static/bootstrap.min.css'))
     folium.LayerControl().add_to(map)
     map.save(args.outfile)
 

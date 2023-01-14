@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>OpenNumismat Timeline</title>
+    <script src="https://visjs.github.io/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="view-source:https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.min.css" />
+    <style>
+        .vis-item {
+            background-color: #ffffff !important;
+            border-color: #97b0f8 !important;
+        }
+
+        .vis-item .vis-item-content {
+            box-sizing: border-box !important;
+            padding: 0px !important;
+        }
+
+        .vis-item.vis-box {
+            border-radius: 5px !important;
+        }
+
+        .vis-item.vis-box {
+            text-align: left !important;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>{{ title }}</h1>
+    <div id="mytimeline"></div>
+    <div id="visualization"></div>
+    <script type="text/javascript">
+        var container = document.getElementById('visualization');
+
+        function setYear(year) {
+            var date = new Date(year, 1, 1);
+            date.setFullYear(year);
+            return date;
+        }
+
+        // note that months are zero-based in the JavaScript Date object
+        var items = new vis.DataSet([
+            {% for coin in coins %}
+            {
+                start: setYear({{coin.year}}),
+                content: `
+<table>
+    <tbody>
+        <tr>
+            <td><img width="100px" height="100px" src="{{ coin.obverseimg | image }}"/></td>
+            <td><strong>{{ coin.year | year }}</strong><br/>{{ coin.title }}</td>
+        </tr>
+    </tbody>
+</table>
+`
+            },
+            {% endfor %}
+        ]);
+
+        var options = {
+            type: 'box',
+            showMajorLabels: false
+        };
+
+        var timeline = new vis.Timeline(container, items, options);
+    </script>
+</body>

@@ -4,7 +4,7 @@
 
 Display your [OpenNumismat](https://github.com/OpenNumismat) collection on a map.
 
-![Example](./img/example.png "Example")
+![Example](./examples/map.png "Map Example")
 
 Each coin must have the following attributes set:
 
@@ -34,7 +34,7 @@ $ ./open-numismat-map \
 ```
 $ ./open-numismat-map \
     --db coins.db \
-    --popup-file popups/simple.html \
+    --popup-file map/popups/simple.html \
     && firefox index.html
 ```
 
@@ -79,7 +79,7 @@ $ ./open-numismat-photos --db coins.db --coin-id 1 --in-field photo1 --out-field
 Bash one-liner to fix all obverse and reverse for coin ids 1 through 20.
 
 ```
-DB=coins.db for coin_id in $(seq 1 20); do ./open-numismat-photos --db $DB --coin-id $coin_id --in-field photo1 --out-field obverseimg --translate vsplitl; ./open-numismat-photos --db $DB --coin-id $coin_id --in-field photo1 --out-field reverseimg --translate vsplitr; done
+DB=coins.db; for coin_id in $(seq 1 20); do ./open-numismat-photos --db $DB --coin-id $coin_id --in-field photo1 --out-field obverseimg --translate vsplitl; ./open-numismat-photos --db $DB --coin-id $coin_id --in-field photo1 --out-field reverseimg --translate vsplitr; done
 ```
 
 ## open-numismat-print
@@ -92,4 +92,22 @@ Read in a photo from the path, vertical split it and save the left side to a fil
 
 ```
 $ ./open-numismat-print --db coins.db
+```
+
+## open-numismat-timeline
+
+Display your [OpenNumismat](https://github.com/OpenNumismat) collection in a timeline.
+
+![Example](./examples/timeline.png "Timeline Example")
+
+Each coin must have the following attributes set:
+
+- longitude
+- latitude
+- obverseimg
+
+### Usage
+
+```
+$ ./open-numismat-timeline --db coins.db && firefox index.html 
 ```

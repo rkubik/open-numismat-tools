@@ -10,7 +10,7 @@ def print_coins(db, format):
     con.row_factory = sqlite3.Row
     cur = con.cursor()
     fields = list(set(re.findall('{([^}]*)}', format)))
-    coins = cur.execute(
+    cur.execute(
         f'SELECT * FROM coins ORDER BY title ASC').fetchone()
     for coin in cur.fetchall():
         out = format

@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+
+import argparse
+import sqlite3
+import jinja2
+import base64
+
+
+def filter_image(value):
+    return 'data:image/png;base64, {}'.format(base64.encodebytes(value).decode('utf-8'))
+
+
+def filter_year(value):
+    year = int(value)
+    if year < 0:
+        return f'{abs(year)} BC'
+    return f'{abs(year)} AD'
+
+
+def all_coins(db, filters):
+    def filter_to_sql():
+        sql = ''
+        for filter in filters:
+            try:
+                key, val = filter.split('=')
+                sql += f" AND {key} = '{val}'"
+            except ValueError:
+                continue
+        return sql
+
+    con = sqlite3.connect(db)
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+    cur.execute(f'''
+SELECT
+    coins.title,
+    coins.longitude,
+    coins.latitude,
+    coins.mint,
+    coins.region,
+    coins.grade,
+    coins.material,
+    coins.value,
+    coins.unit,
+    coins.country,
+    coins.year,
+    coins.period,
+    coins.mintmark,
+    coins.issuedate,
+    coins.edge,
+    coins.edgelabel,
+    coins.obvrev,
+    coins.quality,
+    coins.mintage,
+    coins.dateemis,
+    coins.catalognum1,
+    coins.catalognum2,
+    coins.catalognum3,
+    coins.catalognum4,
+    coins.rarity,
+    coins.price1,
+    coins.price2,
+    coins.price3,
+    coins.price4,
+    coins.variety,
+    coins.obversevar,
+    coins.reversevar,
+    coins.edgevar,
+    coins.paydate,
+    coins.payprice,
+    coins.totalpayprice,
+    coins.saller,
+    coins.payplace,
+    coins.payinfo,
+    coins.saledate,
+    coins.saleprice,
+    coins.totalsaleprice,
+    coins.buyer,
+    coins.saleplace,
+    coins.saleinfo,
+    coins.note,
+    coins.image,
+    coins.obversedesign,
+    coins.obversedesigner,
+    coins.reversedesign,
+    coins.reversedesigner,
+    coins.subject,
+    coins.defect,
+    coins.storage,
+    coins.features,
+    coins.createdat,
+    coins.updatedat,
+    coins.quantity,
+    coins.url,
+    coins.barcode,
+    coins.ruler,
+    coins.status,
+    coins.obverseengraver,
+    coins.reverseengraver,
+    coins.obversecolor,
+    coins.reversecolor,
+    coins.varietydesc,
+    coins.format,
+    coins.condition,
+    coins.category,
+    coins.sort_id,
+    coins.emitent,
+    coins.signaturetype,
+    coins.signature,
+    coins.address,
+    coins.grader,
+    coins.seat,
+    coins.native_year,
+    coins.diameter,
+    coins.weight,
+    photos_photo1.image as photo1,
+    photos_photo2.image as photo2,
+    photos_photo3.image as photo3,
+    photos_photo4.image as photo4,
+    photos_photo5.image as photo5,
+    photos_photo6.image as photo6,
+    photos_obverseimg.image as obverseimg,
+    photos_reverseimg.image as reverseimg,
+    photos_edgeimg.image as edgeimg,
+    photos_varietyimg.image as varietyimg,
+    photos_signatureimg.image as signatureimg
+FROM
+    coins
+LEFT JOIN photos photos_photo1 ON coins.photo1=photos_photo1.id
+LEFT JOIN photos photos_photo2 ON coins.photo2=photos_photo2.id
+LEFT JOIN photos photos_photo3 ON coins.photo3=photos_photo3.id
+LEFT JOIN photos photos_photo4 ON coins.photo4=photos_photo4.id
+LEFT JOIN photos photos_photo5 ON coins.photo5=photos_photo5.id
+LEFT JOIN photos photos_photo6 ON coins.photo6=photos_photo6.id
+LEFT JOIN photos photos_obverseimg ON coins.obverseimg=photos_obverseimg.id
+LEFT JOIN photos photos_reverseimg ON coins.reverseimg=photos_reverseimg.id
+LEFT JOIN photos photos_edgeimg ON coins.edgeimg=photos_edgeimg.id
+LEFT JOIN photos photos_varietyimg ON coins.varietyimg=photos_varietyimg.id
+LEFT JOIN photos photos_signatureimg ON coins.signatureimg=photos_signatureimg.id
+WHERE
+    coins.obverseimg IS NOT NULL {filter_to_sql()}
+ORDER BY
+    year
+''')
+    return cur.fetchall()
+
+
+def render(title, coins):
+    loader = jinja2.FileSystemLoader(searchpath="./timeline")
+    environment = jinja2.Environment(loader=loader)
+    environment.filters['image'] = filter_image
+    environment.filters['year'] = filter_year
+    template = environment.get_template('template.html')
+    return template.render(title=title, coins=coins)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='OpenNusmismat Timeline')
+    parser.add_argument('--db',
+                        type=str,
+                        required=True,
+                        help='Path to OpenNumismat database')
+    parser.add_argument('--title',
+                        type=str,
+                        default='Ancient Coin Timeline',
+                        help='Title of timelime')
+    parser.add_argument('--outfile',
+                        type=str,
+                        default='timeline.html',
+                        help='Path to save HTML timeline'
+                        )
+    parser.add_argument('--filter',
+                        action='extend',
+                        nargs='+',
+                        default=[],
+                        help='Filter coins by KEY=VALUE'
+                        )
+    args = parser.parse_args()
+    coins = all_coins(args.db, args.filter)
+    with open(args.outfile, 'w') as f:
+        f.write(render(args.title, coins))
+
+
+if __name__ == '__main__':
+    main()
