@@ -1,8 +1,17 @@
-.leaflet-popup-content-wrapper {
-    width: 600px;
+@font-face {
+    font-family: 'roman';
+    src: url('roman.ttf') format('truetype');
 }
 
-table.coins {
+.roman {
+    font-family: roman;
+}
+
+.leaflet-popup-content-wrapper {
+    min-width: 600px;
+}
+
+table.opennumismat {
     width: 100%;
 }
 
@@ -11,6 +20,10 @@ table.coins {
     vertical-align: middle !important;
 }
 
-table.coins img {
-    height: 100px;
+table.opennumismat tr:last-child td {
+    border-bottom: 0;
+}
+
+table.opennumismat.noborder td {
+    border: 0;
 }
