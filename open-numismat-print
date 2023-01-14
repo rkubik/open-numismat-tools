@@ -5,29 +5,33 @@ import sqlite3
 import re
 
 
-def print_coin(db, coin_id, format):
+def print_coins(db, format):
     con = sqlite3.connect(db)
     con.row_factory = sqlite3.Row
     cur = con.cursor()
     fields = list(set(re.findall('{([^}]*)}', format)))
-    coin = cur.execute(
-        f'SELECT {",".join(fields)} FROM coins WHERE id = ? LIMIT 1', (coin_id,)).fetchone()
-    out = format
-    for field in fields:
-        out = out.replace(f'{{{field}}}', str(coin[field]))
+    coins = cur.execute(
+        f'SELECT * FROM coins ORDER BY title ASC').fetchone()
+    for coin in cur.fetchall():
+        out = format
+        for field in fields:
+            out = out.replace(f'{{{field}}}', str(coin[field]))
+        print(out)
     con.close()
-    print(out)
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Printer')
-    parser.add_argument('--db', type=str, required=True,
+    parser = argparse.ArgumentParser(description='OpenNusmismat Print')
+    parser.add_argument('--db',
+                        type=str,
+                        required=True,
                         help='Path to OpenNumismat database')
-    parser.add_argument('--coin-id', type=int, required=True,
-                        help='Coin ID')
-    parser.add_argument('--format', type=str, default='{title}. {material} {unit} ({diameter}mm, {weight}g). {mint} mint. Struck {year}. {obversedesign} / {reversedesign} {grade} {rarity}.',
+    parser.add_argument('--format',
+                        type=str,
+                        default='{id}) {title}. {material} {unit} ({diameter}mm, {weight}g). {mint} mint. Struck {year}. {obversedesign} / {reversedesign} {grade} {rarity}.',
                         help='Print format')
     args = parser.parse_args()
-    print_coin(args.db, args.coin_id, args.format)
+    print_coins(args.db, args.format)
 
 
 if __name__ == '__main__':

@@ -222,37 +222,38 @@ def parse_coin_size(size_str):
     except:
         return (32, 32)
 
+
 def main():
-    parser = argparse.ArgumentParser(description='OpenNumismat Map')
+    parser = argparse.ArgumentParser(description='OpenNusmismat Map')
     parser.add_argument('--db',
-        type=str,
-        required=True,
-        help='Path to OpenNumismat database'
-    )
+                        type=str,
+                        required=True,
+                        help='Path to OpenNumismat database'
+                        )
     parser.add_argument('--popup-html',
-        type=str,
-        default=None,
-        help='Render popup from HTML'
-    )
+                        type=str,
+                        default=None,
+                        help='Render popup from HTML'
+                        )
     parser.add_argument('--popup-file',
-        type=str,
-        default='popups/simple.html',
-        help='Render popup from HTML file'
-    )
+                        type=str,
+                        default='popups/simple.html',
+                        help='Render popup from HTML file'
+                        )
     parser.add_argument('--layer',
-        type=str,
-        help='Enable layer control for field'
-    )
+                        type=str,
+                        help='Enable layer control for field'
+                        )
     parser.add_argument('--outfile',
-        type=str,
-        default='index.html',
-        help='Path to save HTML map'
-    )
+                        type=str,
+                        default='index.html',
+                        help='Path to save HTML map'
+                        )
     parser.add_argument('--icon-size',
-        type=str,
-        default='44x44',
-        help='Marker icon size'
-    )
+                        type=str,
+                        default='44x44',
+                        help='Marker icon size'
+                        )
     args = parser.parse_args()
     if args.popup_html:
         popup = args.popup_html

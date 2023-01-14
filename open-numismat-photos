@@ -65,23 +65,35 @@ def translate_photo(photo, translations):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Photos helper')
-    parser.add_argument('--db', type=str,
+    parser = argparse.ArgumentParser(description='OpenNusmismat Photos')
+    parser.add_argument('--db',
+                        type=str,
                         help='Path to OpenNumismat database')
-    parser.add_argument('--coin-id', type=int, required=True,
+    parser.add_argument('--coin-id',
+                        type=int,
+                        required=True,
                         help='Coin ID')
-    parser.add_argument('--in-path', type=str,
+    parser.add_argument('--in-path',
+                        type=str,
                         help='Path to use as photo input')
-    parser.add_argument('--in-field', type=str,
+    parser.add_argument('--in-field',
+                        type=str,
                         help='Database field to use as photo input')
-    parser.add_argument('--in-url', type=str,
+    parser.add_argument('--in-url',
+                        type=str,
                         help='URL as photo input')
-    parser.add_argument('--out-path', type=str,
+    parser.add_argument('--out-path',
+                        type=str,
                         help='Path to use as photo output')
-    parser.add_argument('--out-field', type=str,
+    parser.add_argument('--out-field',
+                        type=str,
                         help='Database field to use as photo output')
-    parser.add_argument('--translate', action='append',
-                        nargs='+', choices=('vsplitl', 'vsplitr'), default=[], help='Image translation')
+    parser.add_argument('--translate',
+                        action='append',
+                        nargs='+',
+                        choices=('vsplitl', 'vsplitr'),
+                        default=[],
+                        help='Image translation')
     args = parser.parse_args()
     if (args.in_field or args.out_field) and not (args.db or args.coin_id):
         print('Error: Missing required option --db and --coin-id')
