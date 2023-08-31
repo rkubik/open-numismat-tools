@@ -2,3 +2,4 @@ folium
 opencv-python
 numpy
 jinja2
+rembg

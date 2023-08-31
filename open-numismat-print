@@ -16,7 +16,7 @@ def print_coins(db, format):
         out = format
         for field in fields:
             out = out.replace(f'{{{field}}}', str(coin[field]))
-        print(out)
+        print(out.replace('\\n', '\n'))
     con.close()
 
 
@@ -28,7 +28,7 @@ def main():
                         help='Path to OpenNumismat database')
     parser.add_argument('--format',
                         type=str,
-                        default='{id}) {title}. {material} {unit} ({diameter}mm, {weight}g). {mint} mint. Struck {year}. {obversedesign} / {reversedesign} {grade} {rarity}.',
+                        default='{title} ({diameter}mm, {weight}g). {mint} mint. {obversedesign} / {reversedesign}.',
                         help='Print format')
     args = parser.parse_args()
     print_coins(args.db, args.format)

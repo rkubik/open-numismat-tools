@@ -11,10 +11,13 @@ def filter_image(value):
 
 
 def filter_year(value):
-    year = int(value)
-    if year < 0:
-        return f'{abs(year)} BC'
-    return f'{abs(year)} AD'
+    try:
+        year = int(value)
+        if year < 0:
+            return f'{abs(year)} BC'
+        return f'{abs(year)} AD'
+    except ValueError:
+        return value
 
 
 def all_coins(db, filters):

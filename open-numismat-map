@@ -9,6 +9,7 @@ import tempfile
 import re
 import cv2
 import numpy as np
+from rembg import remove
 
 
 def formatter_image(value):
@@ -16,9 +17,12 @@ def formatter_image(value):
 
 
 def formatter_year(value):
-    if int(value) < 1:
-        return f'{abs(value)} B.C.'
-    return f'{abs(value)} A.D.'
+    try:
+        if int(value) < 1:
+            return f'{abs(value)} B.C.'
+        return f'{abs(value)} A.D.'
+    except ValueError:
+        return value
 
 
 formatters = {
@@ -164,31 +168,7 @@ WHERE
 
 
 def transparent_image(image):
-    '''
-    Source: https://stackoverflow.com/questions/63001988/how-to-remove-background-of-images-in-python/63003020#63003020
-    '''
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # threshold input image as mask
-    mask = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)[1]
-    # negate mask
-    mask = 255 - mask
-    # apply morphology to remove isolated extraneous noise
-    # use borderconstant of black since foreground touches the edges
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    # anti-alias the mask -- blur then stretch
-    # blur alpha channel
-    mask = cv2.GaussianBlur(mask, (0, 0), sigmaX=2,
-                            sigmaY=2, borderType=cv2.BORDER_DEFAULT)
-    # linear stretch so that 127.5 goes to 0, but 255 stays 255
-    mask = (2*(mask.astype(np.float32))-255.0).clip(0, 255).astype(np.uint8)
-    # put mask into alpha channel
-    result = image.copy()
-    result = cv2.cvtColor(result, cv2.COLOR_BGR2BGRA)
-    result[:, :, 3] = mask
-    # save resulting masked image
-    return result
+    return remove(image)
 
 
 def coin_format(coin, format):
@@ -203,16 +183,16 @@ def coin_format(coin, format):
     return description
 
 
-def coin_icon(coin, size=(32, 32)):
+def coin_icon(coin, photo, size=(32, 32)):
     with tempfile.NamedTemporaryFile(suffix='.png') as tmp:
         image = cv2.imdecode(np.frombuffer(
-            coin['obverseimg'], dtype=np.uint8), flags=1)
+            coin[photo], dtype=np.uint8), flags=1)
         cv2.imwrite(tmp.name, transparent_image(image))
         return folium.features.CustomIcon(tmp.name, icon_size=size)
 
 
-def coin_marker(coin, icon_size, format):
-    return folium.Marker([coin['latitude'], coin['longitude']], icon=coin_icon(coin, size=icon_size), popup=coin_format(coin, format))
+def coin_marker(coin, icon_photo, icon_size, format):
+    return folium.Marker([coin['latitude'], coin['longitude']], icon=coin_icon(coin, icon_photo, size=icon_size), popup=coin_format(coin, format))
 
 
 def parse_coin_size(size_str):
@@ -249,6 +229,11 @@ def main():
                         default='map.html',
                         help='Path to save HTML map'
                         )
+    parser.add_argument('--icon-photo',
+                        type=str,
+                        default='obverseimg',
+                        help='Marker icon photo'
+                        )
     parser.add_argument('--icon-size',
                         type=str,
                         default='44x44',
@@ -271,7 +256,7 @@ def main():
             group_locations[location] = [coin]
         else:
             group_locations[location].append(coin)
-        marker = coin_marker(coin, parse_coin_size(
+        marker = coin_marker(coin, args.icon_photo, parse_coin_size(
             args.icon_size), popup)
         if args.layer and args.layer in coin and coin[args.layer] and isinstance(coin[args.layer], str):
             if coin[args.layer] in group_markers:
